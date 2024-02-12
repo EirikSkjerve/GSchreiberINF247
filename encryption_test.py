@@ -120,11 +120,12 @@ def test_encryption(input_wheels, input_cabling):
     counter = 0
     for i in range(len(encrypted)-10):
         if encrypted[i]:
-            counter += 1
-            print(encrypted[i])
-            print(CIPHERTEXT[i])
-            print("\n")
-    #print(counter)
+            #print(encrypted[i])
+            #print(CIPHERTEXT[i])
+            if encrypted[i] == CIPHERTEXT[i]:
+                counter += 1
+            #print("\n")
+    print(f"{counter}/{len(CIPHERTEXT)} = {round(counter/len(CIPHERTEXT), 3)*100}% correctly found")
 
 # helper function for relay box
 # swaps two positions in a list
@@ -179,9 +180,9 @@ def encrypt(plaintext):
         # rotate all wheels for each letter encryption
         for i in range(len(wheels)):
             wheels[i] = rotate(wheels[i])
-        if 'x' in board:
-            ciphertext.append(False)
-            continue
+#        if 'x' in board:
+#            ciphertext.append(False)
+#            continue
         # feed the relay box with the encoded plaintext character xor'ed with the 
         # first 5 bits from the board, and the last 5 bits from the board
         # the output is the ciphertext character for that plaintext character

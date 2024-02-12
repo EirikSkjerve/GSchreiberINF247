@@ -187,15 +187,13 @@ for k in impossible_cabling_2.keys():
         if m not in impossible_cabling_2.get(k):
             cabling[5+k] = m
     
-# reconstruct all bits for the last 5-bit group
-
+# reconstruct some bits for the last 5-bit group
 for i in range(len(CIPHERTEXT)):
     for j,c in enumerate(cabling[5:]):
         if control_bits_groups.get(i):
             wheels[c][i%periods[c]] = control_bits_groups.get(i)[j]
 
 # display cabling
-
 for i, c in enumerate(cabling):
     print(f"{periods[c]}: {c}")
 
@@ -230,10 +228,6 @@ for i, c in enumerate(ciphertext_encoded):
     # infer some of the unknown values     
     if plugboard_test and plugboard_2[i]:
         if plugboard_2[i] != plugboard_test:
-            #print(f"Time: {i}")
-            #print(f"From reconstructed wheels: {plugboard_2[i]}")
-            #print(f"From table of values:      {plugboard_test}")
-
             updated_plugboard=""
 
             for b in range(5):
@@ -248,6 +242,7 @@ for i, c in enumerate(ciphertext_encoded):
 
 ###TEST###
 
+inferred_bits = []
 # update wheels after inferring some bits
 for i in range(len(CIPHERTEXT)):
 
@@ -260,6 +255,7 @@ for i in range(len(CIPHERTEXT)):
 
                 #print(f"change: {wheels[c][i%periods[c]]} -> {bit}")
                 wheels[c][i%periods[c]] = bit
+                inferred_bits.append(i)
 
 # create the second plugboard at every position
 plugboard_2 = []
@@ -278,6 +274,7 @@ for i in range(len(CIPHERTEXT)):
     assert(XOR(plaintext_encoded[i],plugboard_1[i]).count('1') == ciphertext_encoded[i].count('1'))
 
 
+wrong_bits = []
 counter_1, counter_2 = 0, 0
 ### DISPLAY ALL KNOWN INFORMATION ###
 for i in range(len(CIPHERTEXT)):
@@ -286,51 +283,18 @@ for i in range(len(CIPHERTEXT)):
     relay_control = plugboard_2[i]
     relay_output = ciphertext_encoded[i]
     
-    if not control_bits_groups.get(i):
-        #print(f"\n {relay_control} \n")
-        #continue
-        pass
-    # check that the found control bits would actually work in the relay-box
-    
     relay_check = ''.join([relay_box_2(list(relay_input), list(relay_control))[x] for x in range(5)])
 
-    #print(f"{relay_input} -> {relay_control} -> {relay_output}")
-    #print(relay_check)
+    if relay_check != ciphertext_encoded[i]:
+        wrong_bits.append(i)
 
-    if relay_check != relay_output:
-        print("\n!!!")
-        print(f"{relay_check}, {relay_control}")
-        print("!!!\n")
-        counter_2 += 1
-        continue
-    counter_1 += 1
-    
-
-
-    #print("\n")
-#print(f"{counter_1} \n{counter_2}")
-# try and infer some of the last missing bits for the last 5-bit group
-
-counter = 0
-for i in range(len(CIPHERTEXT)):
-    relay_input = XOR(plaintext_encoded[i], plugboard_1[i])
-    relay_control = plugboard_2[i]
-
-    relay_output = ''.join([str(relay_box_2(relay_input, relay_control)[x]) for x in range(5)])
-    #print(relay_output)
-    #print(ciphertext_encoded[i], "\n")
-
-    ciphertext_decoded = get_rev_hm_num(relay_output)
-    if ciphertext_decoded == CIPHERTEXT[i]:
-        counter += 1
-    continue
-    if relay_output == ciphertext_encoded[i]:
-        counter += 1
-
-print(counter)
-
-
-### reconstruct wheeling one last time
-
+        print(control_bits_groups.get(i))
+        print(relay_control, "\n")
 
 test_encryption(wheels, cabling)
+
+print(f"{len(inferred_bits)} inferred bits")
+print(f"{len(wrong_bits)} wrong bits")
+
+
+#TODO bruteforce the last bits maybe?
