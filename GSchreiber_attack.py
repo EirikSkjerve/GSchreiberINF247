@@ -90,9 +90,11 @@ for i in range(len(CIPHERTEXT)):
 for i in range(len(CIPHERTEXT)):
     # plugboard at time i
     plugboard = ""
+
     for x in range(5):
         cable = cabling[x]
         plugboard += wheels[cable][i%periods[cable]]
+
     if plugboard.count('x') != 1:
         continue
 
@@ -208,7 +210,7 @@ for i in range(len(CIPHERTEXT)):
     plugboard_2.append(plugboard)
 
 
-###TEST###
+# infer some missing bits by comparing control-bits directly from table, and the bits constructed from periodicity
 for i, c in enumerate(ciphertext_encoded):
     # plugboard at time i
     plugboard = plugboard_1[i]
@@ -240,22 +242,17 @@ for i, c in enumerate(ciphertext_encoded):
                     updated_plugboard += plugboard_test[b]
             plugboard_2[i] = updated_plugboard
 
-###TEST###
 
 inferred_bits = []
 # update wheels after inferring some bits
 for i in range(len(CIPHERTEXT)):
-
-    #print(plugboard_2[i])
     for j,c in enumerate(cabling[5:]):
-        #print(j)
         bit = plugboard_2[i][j]
-        if bit != wheels[c][i%periods[c]]:
-            if bit != 'x':
+        if bit != wheels[c][i%periods[c]] and bit != 'x':
 
-                #print(f"change: {wheels[c][i%periods[c]]} -> {bit}")
-                wheels[c][i%periods[c]] = bit
-                inferred_bits.append(i)
+            wheels[c][i%periods[c]] = bit
+
+                #inferred_bits.append(i)
 
 # create the second plugboard at every position
 plugboard_2 = []
@@ -292,9 +289,5 @@ for i in range(len(CIPHERTEXT)):
         print(relay_control, "\n")
 
 test_encryption(wheels, cabling)
-
-print(f"{len(inferred_bits)} inferred bits")
-print(f"{len(wrong_bits)} wrong bits")
-
 
 #TODO bruteforce the last bits maybe?
