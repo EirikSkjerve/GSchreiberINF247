@@ -195,22 +195,23 @@ for i in range(len(CIPHERTEXT)):
         if control_bits_groups.get(i):
             wheels[c][i%periods[c]] = control_bits_groups.get(i)[j]
 
-# display cabling
-for i, c in enumerate(cabling):
-    print(f"{periods[c]}: {c}")
-
 # create the plugboard at every position
-global plugboard_2
-plugboard_2 = []
-for i in range(len(CIPHERTEXT)):
-    # plugboard at time i
-    plugboard = ""
-    for x in range(5,10,1):
-        cable = cabling[x]
-        plugboard += wheels[cable][i%periods[cable]]
-    plugboard_2.append(plugboard)
+def update_plugboard_2():
+    plugboard_2 = []
+    for i in range(len(CIPHERTEXT)):
+        # plugboard at time i
+        plugboard = ""
+        for x in range(5,10,1):
+            cable = cabling[x]
+            plugboard += wheels[cable][i%periods[cable]]
+        plugboard_2.append(plugboard)
+    return plugboard_2
 
+plugboard_2 = update_plugboard_2()
 
+print(f"Before:")
+for c in cabling:
+    print(f"{wheels[c].count('x')}")
 # infer some missing bits by comparing control-bits directly from table, and the bits constructed from periodicity
 for i, c in enumerate(ciphertext_encoded):
     # plugboard at time i
@@ -244,7 +245,6 @@ for i, c in enumerate(ciphertext_encoded):
             plugboard_2[i] = updated_plugboard
 
 
-inferred_bits = []
 # update wheels after inferring some bits
 for i in range(len(CIPHERTEXT)):
     for j,c in enumerate(cabling[5:]):
@@ -253,29 +253,17 @@ for i in range(len(CIPHERTEXT)):
 
             wheels[c][i%periods[c]] = bit
 
-                #inferred_bits.append(i)
+plugboard_2 = update_plugboard_2()
 
-# create the second plugboard at every position
-plugboard_2 = []
-for i in range(len(CIPHERTEXT)):
-    # plugboard at time i
-    plugboard = ""
-    for x in range(5,10,1):
-        cable = cabling[x]
-        plugboard += wheels[cable][i%periods[cable]]
-    plugboard_2.append(plugboard)
-
-
-###TEST IF FIRST 5 WHEELS ARE CORRECT###
 # this asserts that five first wheels is correct with high probability
 for i in range(len(CIPHERTEXT)):
     assert(XOR(plaintext_encoded[i],plugboard_1[i]).count('1') == ciphertext_encoded[i].count('1'))
 
 
-replacement = {}
 ### USE RELAY-BOX TO RECONSTRUCT LAST BITS###
 def bruteforce():
 
+    replacement = {}
     for i in range(len(CIPHERTEXT)):
         plugboard = plugboard_1[i]
         relay_input = XOR(plaintext_encoded[i], plugboard)
@@ -284,18 +272,76 @@ def bruteforce():
         relay_check = ''.join([relay_box_2(list(relay_input), list(relay_control))[x] for x in range(5)])
 
         if relay_check != ciphertext_encoded[i]:
-
             if relay_control.count('x') == 1:
-                temp_1 = relay_control.replace("x","1")        
-                temp_2 = relay_control.replace("x","0")
-                
-                temp_1_check = ''.join([relay_box_2(list(relay_input), list(temp_1))[x] for x in range(5)])
-                temp_2_check = ''.join([relay_box_2(list(relay_input), list(temp_2))[x] for x in range(5)])
 
+                print(relay_control)
+                print(f"{relay_check} vs. {ciphertext_encoded[i]}")
+                temp_1 = relay_control.replace("x","1")        
+                temp_1_check = ''.join([relay_box_2(list(relay_input), list(temp_1))[x] for x in range(5)])
                 if temp_1_check == ciphertext_encoded[i]:
-                    replacement[i] = temp_1_check
+                    replacement[i] = temp_1
+
+                temp_2 = relay_control.replace("x","0")
+                temp_2_check = ''.join([relay_box_2(list(relay_input), list(temp_2))[x] for x in range(5)])
                 if temp_2_check == ciphertext_encoded[i]:
-                    replacement[i] = temp_2_check
+                    replacement[i] = temp_2
+                print(f"Chosen value: {replacement.get(i)}\n")
+            continue
+            if relay_control.count('x') == 2:
+                print(f"relay control bits: {relay_control}")
+                print(f"Relay check: {relay_check}, Correct: {ciphertext_encoded[i]}")
+
+                x_1_pos, x_2_pos = -1, -1
+                for j, rc in enumerate(relay_control):
+                    if rc=='x':
+                        if x_1_pos == -1:
+                            x_1_pos = j
+                        else:
+                            x_2_pos = j
+                
+                def helperfunc(temp_list,_relay_input,_correct):
+                    temp_str = ''.join([str(temp_list[x]) for x in range(5)])
+                    temp_check =''.join([relay_box_2(list(_relay_input), list(temp_str))[x] for x in range(5)])
+                    if temp_check == _correct:
+                        print(f"{temp_str} gives {temp_check}")
+                    return temp_check
+
+                temp = list(relay_control)
+                temp_1 = temp.copy()
+
+                found = False
+
+                temp_1[x_1_pos], temp_1[x_2_pos] = '0', '0'
+                res = helperfunc(temp_1, relay_input, ciphertext_encoded[i])
+                if res == ciphertext_encoded[i]:
+                    replacement[i] = res
+                    found = True
+                print(temp_1)
+                temp_1[x_1_pos], temp_1[x_2_pos] = '0', '1'
+                res = helperfunc(temp_1, relay_input, ciphertext_encoded[i])
+                if res == ciphertext_encoded[i]:
+                    replacement[i] = res
+                    found = True
+
+                print(temp_1)
+                temp_1[x_1_pos], temp_1[x_2_pos] = '1', '0'
+                res = helperfunc(temp_1, relay_input, ciphertext_encoded[i])
+                if res == ciphertext_encoded[i]:
+                    replacement[i] = res
+                    found = True
+
+                print(temp_1)
+                temp_1[x_1_pos], temp_1[x_2_pos] = '1', '1'
+                res = helperfunc(temp_1, relay_input, ciphertext_encoded[i])
+                if res == ciphertext_encoded[i]:
+                    replacement[i] = res
+                    found = True
+                
+                print(temp_1)
+                print(f"Figured out: {replacement.get(i)} \n")
+
+
+
 
     # update wheels
     for pos, group in replacement.items():
@@ -305,38 +351,8 @@ def bruteforce():
             if wheels[cable][pos%period] == 'x':
                 wheels[cable][pos%period] = group[i-5]
 
-print("Before:")
-for c in cabling:
-    print(f"{wheels[c]}, x-count: {wheels[c].count('x')} \n")
-
 
 bruteforce()
-# update plugboard
-plugboard_2 = []
-for i in range(len(CIPHERTEXT)):
-    # plugboard at time i
-    plugboard = ""
-    for x in range(5,10,1):
-        cable = cabling[x]
-        plugboard += wheels[cable][i%periods[cable]]
-    plugboard_2.append(plugboard)
-
-print("After_1:")
-for c in cabling:
-    print(f"{wheels[c]}, x-count: {wheels[c].count('x')} \n")
-
-bruteforce()
-print("After_2:")
-for c in cabling:
-    print(f"{wheels[c]}, x-count: {wheels[c].count('x')} \n")
-plugboard = []
-for i in range(len(CIPHERTEXT)):
-    # plugboard at time i
-    plugboard = ""
-    for x in range(5,10,1):
-        cable = cabling[x]
-        plugboard += wheels[cable][i%periods[cable]]
-    plugboard_2.append(plugboard)
-
+plugboard_2 = update_plugboard_2()
 
 test_encryption(wheels, cabling)

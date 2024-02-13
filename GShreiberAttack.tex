@@ -30,19 +30,41 @@
         bit position and a wheel. 
         \item When we know the cabling for the first 5-bit group, it is easy to reconstruct the 0-1 distribution on the relevant wheels,
         by going through the plaintext/ciphertext, and inserting into the wheels the correct bit on the correct position on the wheel.
-        At this point 0-1 distribution on first five wheels should be known.
+        \item At this point in my implementation, not all bits for the first five positions were known.
+        To solve this, I used the fact that if there is one unknown bit in the first 5-bit group at the same time
+        there is a weigth one or weight four 5-bit group in the relay input/output, the missing bit is possible to find.
+        For example: plugboard at position $i$ is $(0\ 0\ x\ 1\ 0)$ and plaintext encoding is $(1\ 0\ 1\ 1\ 0)$
+        the result from xor'ing them together is $(1\ 0\ x\ 0\ 0)$. But since we know that this 5-bit group should be of weight
+        one, the unknown in the plugboard must be 1 such that the unknown in the xor result is 0. By doing this for every such situation I was able to retrieve all
+        remaining bits in the first five wheels.
+
     \end{itemize}
-    \item Find control bits for relay box, cabling and 0-1 distribution.
+    \item Find control bits for relay box, cabling and 0-1 distribution on remaining wheels.
     \begin{itemize}
-        \item We locate times in the ciphertext where the code is a 5-bit group of weight one or weight 4 (e.g. "10000", "01111").
+        \item We locate times in the ciphertext where the code is a 5-bit group of weight one or weight four (e.g. "10000", "01111").
         Since we know the bits in the first 5-bit group for those times, we also know the input to the relay box at that time.
         \item By constructing a table of possible control-bits for specific 1/4-weight input/output pairs,
         we can decide some control bits for those moments. For example, a specific input/output pair can yield 
-        control bits "101xx". The we can place the bits "1","0" and "1" with certainty, while the remaining bits ("x") are still unknonw.
+        control bits "101xx". Then we can place the bits "1","0" and "1" with certainty, while the remaining bits ("x") are still unknonw.
         \item Next we test periodicity on these bits aswell, like in the previous step. 
         Then we should know the cabling from the last 5-bit group to the remaining wheels.
-        \item If plaintext/ciphertext is long enough we should be able to retrieve the 0-1 distribution 
-        for the last 5 wheels aswell.
+        \item In my implementation a lot of bits for the last wheels were still missing at this point.
+        To find more bits, I did the following two things:
+        \begin{itemize}
+            \item Again, find positions where input/output to the relay box is of weight one or four that were retrieved through 
+            periodicity instead of directly from the table. By comparing the current values on the plugboard to the value in the table
+            we can infer the value of a missing bit on the plugboard. For example: if the 5-bit group $(x\ 0\ 1\ 1\ 0)$
+            on the plugboard at time $i$, we check the weights of the encoded ciphertext at time $i$. If the weight is one or four,
+            we know that these control bits have an entry in the table from the previous steps. We find the entry, and compare.
+            If, for example, the entry from the table is $(0\ 0\ 1\ x\ 0)$, we can update the plugboard at time $i$ such that $x \rightarrow 0$
+            By doing this for all such cases, I was able to reconstruct a good portion of the remaining missing bits: 
+            31/60 missing bits for wheel 9, 20/21 missing bits for wheel 1, 30/34 missing bits for wheel 5, 30/35 missing bits for wheel 8 and 42/44 missing bits for wheel 3.
+            At this point, I was able to encrypt 85$\%$ of the plaintext correctly.
+            \item Another approach to retrieve more of the missing bits is the following: for those positions where encryption failed,
+            if there is only one unknown control bit for that moment, I simply check which of "0" and "1" for the unknown bit yields the correct encryption, and update the plugboard and wheels accordingly.
+            In total, this method retrieves 24 more unknown bits, and 26 missing bits remain.
+            At this point, about 94$\%$ of the encryption is successful.
+        \end{itemize}
 
     \end{itemize}
 \end{enumerate}
