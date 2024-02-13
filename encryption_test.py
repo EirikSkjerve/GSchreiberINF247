@@ -118,14 +118,19 @@ def test_encryption(input_wheels, input_cabling):
 
     encrypted = encrypt(plaintext_encoded)
     counter = 0
+    wrong_pos = []
     for i in range(len(encrypted)-10):
         if encrypted[i]:
             #print(encrypted[i])
             #print(CIPHERTEXT[i])
             if encrypted[i] == CIPHERTEXT[i]:
                 counter += 1
+            else:
+                wrong_pos.append(i)
+            
             #print("\n")
-    print(f"{counter}/{len(CIPHERTEXT)} = {round(counter/len(CIPHERTEXT), 3)*100}% correctly found")
+    print(f"{counter}/{len(CIPHERTEXT)} = {round(counter/len(CIPHERTEXT)*100, 3)}% correctly found")
+    #print(wrong_pos)
 
 # helper function for relay box
 # swaps two positions in a list

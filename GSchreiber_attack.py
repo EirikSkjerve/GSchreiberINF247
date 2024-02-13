@@ -200,6 +200,7 @@ for i, c in enumerate(cabling):
     print(f"{periods[c]}: {c}")
 
 # create the plugboard at every position
+global plugboard_2
 plugboard_2 = []
 for i in range(len(CIPHERTEXT)):
     # plugboard at time i
@@ -271,23 +272,71 @@ for i in range(len(CIPHERTEXT)):
     assert(XOR(plaintext_encoded[i],plugboard_1[i]).count('1') == ciphertext_encoded[i].count('1'))
 
 
-wrong_bits = []
-counter_1, counter_2 = 0, 0
-### DISPLAY ALL KNOWN INFORMATION ###
+replacement = {}
+### USE RELAY-BOX TO RECONSTRUCT LAST BITS###
+def bruteforce():
+
+    for i in range(len(CIPHERTEXT)):
+        plugboard = plugboard_1[i]
+        relay_input = XOR(plaintext_encoded[i], plugboard)
+        relay_control = plugboard_2[i]
+        
+        relay_check = ''.join([relay_box_2(list(relay_input), list(relay_control))[x] for x in range(5)])
+
+        if relay_check != ciphertext_encoded[i]:
+
+            if relay_control.count('x') == 1:
+                temp_1 = relay_control.replace("x","1")        
+                temp_2 = relay_control.replace("x","0")
+                
+                temp_1_check = ''.join([relay_box_2(list(relay_input), list(temp_1))[x] for x in range(5)])
+                temp_2_check = ''.join([relay_box_2(list(relay_input), list(temp_2))[x] for x in range(5)])
+
+                if temp_1_check == ciphertext_encoded[i]:
+                    replacement[i] = temp_1_check
+                if temp_2_check == ciphertext_encoded[i]:
+                    replacement[i] = temp_2_check
+
+    # update wheels
+    for pos, group in replacement.items():
+        for i in range(5,10,1):
+            cable = cabling[i]
+            period = periods[cable]
+            if wheels[cable][pos%period] == 'x':
+                wheels[cable][pos%period] = group[i-5]
+
+print("Before:")
+for c in cabling:
+    print(f"{wheels[c]}, x-count: {wheels[c].count('x')} \n")
+
+
+bruteforce()
+# update plugboard
+plugboard_2 = []
 for i in range(len(CIPHERTEXT)):
-    plugboard = plugboard_1[i]
-    relay_input = XOR(plaintext_encoded[i], plugboard)
-    relay_control = plugboard_2[i]
-    relay_output = ciphertext_encoded[i]
-    
-    relay_check = ''.join([relay_box_2(list(relay_input), list(relay_control))[x] for x in range(5)])
+    # plugboard at time i
+    plugboard = ""
+    for x in range(5,10,1):
+        cable = cabling[x]
+        plugboard += wheels[cable][i%periods[cable]]
+    plugboard_2.append(plugboard)
 
-    if relay_check != ciphertext_encoded[i]:
-        wrong_bits.append(i)
+print("After_1:")
+for c in cabling:
+    print(f"{wheels[c]}, x-count: {wheels[c].count('x')} \n")
 
-        print(control_bits_groups.get(i))
-        print(relay_control, "\n")
+bruteforce()
+print("After_2:")
+for c in cabling:
+    print(f"{wheels[c]}, x-count: {wheels[c].count('x')} \n")
+plugboard = []
+for i in range(len(CIPHERTEXT)):
+    # plugboard at time i
+    plugboard = ""
+    for x in range(5,10,1):
+        cable = cabling[x]
+        plugboard += wheels[cable][i%periods[cable]]
+    plugboard_2.append(plugboard)
+
 
 test_encryption(wheels, cabling)
-
-#TODO bruteforce the last bits maybe?
