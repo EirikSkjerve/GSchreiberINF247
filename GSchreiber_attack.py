@@ -139,15 +139,11 @@ for i, c in enumerate(ciphertext_encoded):
         weight_1_groups[i] = c
         if df_weight_one[c][relay_input]:
             control_bits_groups[i] = df_weight_one[c][relay_input]
-        else:
-            control_bits_groups[i] = df_weight_one[c][relay_input]
 
     # store positions of 4 weight groups
     if (c.count('0') == 1) and (relay_input.count('0') == 1):
         weight_4_groups[i] = c
         if df_weight_four[c][relay_input]:
-            control_bits_groups[i] = df_weight_four[c][relay_input]
-        else:
             control_bits_groups[i] = df_weight_four[c][relay_input]
 
 impossible_cabling_2 = {0: [], 1: [], 2: [], 3: [], 4: []}
@@ -209,9 +205,6 @@ def update_plugboard_2():
 
 plugboard_2 = update_plugboard_2()
 
-print(f"Before:")
-for c in cabling:
-    print(f"{wheels[c].count('x')}")
 # infer some missing bits by comparing control-bits directly from table, and the bits constructed from periodicity
 for i, c in enumerate(ciphertext_encoded):
     # plugboard at time i
@@ -259,100 +252,81 @@ plugboard_2 = update_plugboard_2()
 for i in range(len(CIPHERTEXT)):
     assert(XOR(plaintext_encoded[i],plugboard_1[i]).count('1') == ciphertext_encoded[i].count('1'))
 
-
 ### USE RELAY-BOX TO RECONSTRUCT LAST BITS###
-def bruteforce():
+replacement = {}
+counter = 0
+for i in range(len(CIPHERTEXT)):
+    plugboard = plugboard_1[i]
+    relay_input = XOR(plaintext_encoded[i], plugboard)
+    relay_control = plugboard_2[i]
+    
+    # check what is the output from the relay box with current control bits
+    relay_check = ''.join([relay_box_2(list(relay_input), list(relay_control))[x] for x in range(5)])
 
-    replacement = {}
-    for i in range(len(CIPHERTEXT)):
-        plugboard = plugboard_1[i]
-        relay_input = XOR(plaintext_encoded[i], plugboard)
-        relay_control = plugboard_2[i]
-        
-        relay_check = ''.join([relay_box_2(list(relay_input), list(relay_control))[x] for x in range(5)])
+    # if the output is different from the ciphertext at that position, a bit needs to change
+    if relay_check != ciphertext_encoded[i]:
+        # look at cases where there's only one unknown bit
+        if relay_control.count('x') == 1:
 
-        if relay_check != ciphertext_encoded[i]:
-            if relay_control.count('x') == 1:
+            # make a copy of the control bits where the unknown bit is set to 1 and 0, and test for both cases. Keep the correct case
+            temp_1 = relay_control.replace("x","1")        
+            temp_1_check = ''.join([relay_box_2(list(relay_input), list(temp_1))[x] for x in range(5)])
+            if temp_1_check == ciphertext_encoded[i]:
+                replacement[i] = temp_1
 
-                print(relay_control)
-                print(f"{relay_check} vs. {ciphertext_encoded[i]}")
-                temp_1 = relay_control.replace("x","1")        
-                temp_1_check = ''.join([relay_box_2(list(relay_input), list(temp_1))[x] for x in range(5)])
-                if temp_1_check == ciphertext_encoded[i]:
-                    replacement[i] = temp_1
+            temp_2 = relay_control.replace("x","0")
+            temp_2_check = ''.join([relay_box_2(list(relay_input), list(temp_2))[x] for x in range(5)])
+            if temp_2_check == ciphertext_encoded[i]:
+                replacement[i] = temp_2
 
-                temp_2 = relay_control.replace("x","0")
-                temp_2_check = ''.join([relay_box_2(list(relay_input), list(temp_2))[x] for x in range(5)])
-                if temp_2_check == ciphertext_encoded[i]:
-                    replacement[i] = temp_2
-                print(f"Chosen value: {replacement.get(i)}\n")
-            continue
-            if relay_control.count('x') == 2:
-                print(f"relay control bits: {relay_control}")
-                print(f"Relay check: {relay_check}, Correct: {ciphertext_encoded[i]}")
-
-                x_1_pos, x_2_pos = -1, -1
-                for j, rc in enumerate(relay_control):
-                    if rc=='x':
-                        if x_1_pos == -1:
-                            x_1_pos = j
-                        else:
-                            x_2_pos = j
-                
-                def helperfunc(temp_list,_relay_input,_correct):
-                    temp_str = ''.join([str(temp_list[x]) for x in range(5)])
-                    temp_check =''.join([relay_box_2(list(_relay_input), list(temp_str))[x] for x in range(5)])
-                    if temp_check == _correct:
-                        print(f"{temp_str} gives {temp_check}")
-                    return temp_check
-
-                temp = list(relay_control)
-                temp_1 = temp.copy()
-
-                found = False
-
-                temp_1[x_1_pos], temp_1[x_2_pos] = '0', '0'
-                res = helperfunc(temp_1, relay_input, ciphertext_encoded[i])
-                if res == ciphertext_encoded[i]:
-                    replacement[i] = res
-                    found = True
-                print(temp_1)
-                temp_1[x_1_pos], temp_1[x_2_pos] = '0', '1'
-                res = helperfunc(temp_1, relay_input, ciphertext_encoded[i])
-                if res == ciphertext_encoded[i]:
-                    replacement[i] = res
-                    found = True
-
-                print(temp_1)
-                temp_1[x_1_pos], temp_1[x_2_pos] = '1', '0'
-                res = helperfunc(temp_1, relay_input, ciphertext_encoded[i])
-                if res == ciphertext_encoded[i]:
-                    replacement[i] = res
-                    found = True
-
-                print(temp_1)
-                temp_1[x_1_pos], temp_1[x_2_pos] = '1', '1'
-                res = helperfunc(temp_1, relay_input, ciphertext_encoded[i])
-                if res == ciphertext_encoded[i]:
-                    replacement[i] = res
-                    found = True
-                
-                print(temp_1)
-                print(f"Figured out: {replacement.get(i)} \n")
+# update wheels with the new replacements
+for pos, group in replacement.items():
+    for i in range(5,10,1):
+        cable = cabling[i]
+        period = periods[cable]
+        #if wheels[cable][pos%period] == 'x':
+        wheels[cable][pos%period] = group[i-5]
 
 
-
-
-    # update wheels
-    for pos, group in replacement.items():
-        for i in range(5,10,1):
-            cable = cabling[i]
-            period = periods[cable]
-            if wheels[cable][pos%period] == 'x':
-                wheels[cable][pos%period] = group[i-5]
-
-
-bruteforce()
 plugboard_2 = update_plugboard_2()
+
+# continue to reveal unknown bits by s
+replacement = {}
+for i in range(len(CIPHERTEXT)):
+    plugboard = plugboard_1[i]
+    relay_input = XOR(plaintext_encoded[i], plugboard)
+    relay_control = plugboard_2[i]
+    
+    # check what is the output from the relay box with current control bits
+    relay_check = ''.join([relay_box_2(list(relay_input), list(relay_control))[x] for x in range(5)])
+
+    # only do cases where there's one unknown bit
+    if relay_control.count('x') == 1:
+
+        # make a copy of the control bits where the unknown bit is set to 1 and 0, and test for both cases. Keep the correct case
+        temp_1 = relay_control.replace("x","1")        
+        temp_1_check = ''.join([relay_box_2(list(relay_input), list(temp_1))[x] for x in range(5)])
+        if temp_1_check == ciphertext_encoded[i]:
+            replacement[i] = temp_1
+            continue
+
+        temp_2 = relay_control.replace("x","0")
+        temp_2_check = ''.join([relay_box_2(list(relay_input), list(temp_2))[x] for x in range(5)])
+        if temp_2_check == ciphertext_encoded[i]:
+            replacement[i] = temp_2
+
+# update wheels with the new replacements
+for pos, group in replacement.items():
+    for i in range(5,10,1):
+        cable = cabling[i]
+        period = periods[cable]
+        #if wheels[cable][pos%period] == 'x':
+        wheels[cable][pos%period] = group[i-5]
+
+missing_bits = 0
+for c in cabling:
+    print(f"wheel {c}: {wheels[c]}")
+    missing_bits += wheels[c].count('x')
+print(f"Missing bits: {missing_bits}")
 
 test_encryption(wheels, cabling)

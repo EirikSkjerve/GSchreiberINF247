@@ -63,7 +63,9 @@
             \item Another approach to retrieve more of the missing bits is the following: for those positions where encryption failed,
             if there is only one unknown control bit for that moment, I simply check which of "0" and "1" for the unknown bit yields the correct encryption, and update the plugboard and wheels accordingly.
             In total, this method retrieves 24 more unknown bits, and 26 missing bits remain.
-            At this point, about 94$\%$ of the encryption is successful.
+            At this point, 100$\%$ of the encryption is successful, even though some bits are missing. The reason encryption works while
+            there are still missing bits is because the output of the relay box only depends on the known 
+            control bits for those specific 5-bit groups.
         \end{itemize}
 
     \end{itemize}
